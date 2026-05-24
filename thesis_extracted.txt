@@ -1,0 +1,600 @@
+Research Article
+Automated Atrial Fibrillation Detection Based on Feature Fusion
+Using Discriminant Canonical Correlation Analysis
+Jingjing Shi ,1Chao Chen ,1Hui Liu,1Yinglong Wang ,1Minglei Shu ,1
+and Qing Zhu2
+1Shandong Arti ﬁcial Intelligence Institute, Qilu University of Technology (Shandong Academy of Sciences), China
+2Qilu Hospital of Shandong University, China
+Correspondence should be addressed to Qing Zhu; 198862000790@email.sdu.edu.cn
+Received 21 December 2020; Revised 5 March 2021; Accepted 26 March 2021; Published 9 April 2021Academic Editor: Mario 
+Cesarelli
+Copyright © 2021 Jingjing Shi et al. This is an open access article distributed under the Creative Commons Attribution License,
+which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited.
+Atrial ﬁbrillation (AF) is one of the most common cardiovascular diseases, with a high disability rate and mortality rate. The early
+detection and treatment of atrial ﬁbrillation have great clinical signiﬁ cance. In this paper, a multiple feature fusion is proposed to
+screen out AF recordings from single lead short electrocardiogram (ECG) recordings. The proposed method uses discriminant
+canonical correlation analysis (DCCA) feature fusion. It fully takes intraclass correlation and interclass correlation intoconsideration and solves the problem of computation and information redundancy with simple series or parallel feature fusion.
+The DCCA integrates traditional features extracted by expert knowledge and deep learning features extracted by the residual
+network and gated recurrent unit network to improve the low accuracy of a single feature. Based on the Cardiology Challenge2017 dataset, the experiments are designed to verify the eﬀ ectiveness of the proposed algorithm. In the experiments, the F1
+index can reach 88%. The accuracy, sensitivity, and speci ﬁcity are 91.7%, 90.4%, and 93.2%, respectively.
+1. Introduction
+Atrial ﬁbrillation (AF) is the most common persistent cardio-
+vascular disease, which can easily lead to strokes, hemiplegia,
+and other diseases, seriously threatening patients ’health;
+thus, timely diagnosis and treatment are necessary. However,owing to the shortage of medical resources and the singlemodel of doctor diagnosis, it becomes urgent to improveautomatic detection technology. Automatic detection of car-diac rhythm is a meaningful and important issue in di ﬀerent
+age groups, including adults [1] and fetuses [2]. Computa-tional techniques and deep learning methods detecting vari-ous types of arrhythmia have been widely developed toanalyse ECG signals and are strong candidates to help clinical
+advances by providing a better understanding of medical
+challenges [3, 4]. With the development of medicine, peoplehave gained more understanding of the physiological mech-anism of atrial ﬁbrillation, but further research is still needed[5]. Physiologically, the occurrence of atrial ﬁbrillation is due
+to irregular atrial contraction, which is re ﬂected in the elec-
+trocardiogram: P waves disappear, irregular ﬁbrillation waves
+(f waves) of di ﬀerent sizes and shapes appear [6, 7], and there
+is a severe irregularity of the RR interval.
+The detection of atrial ﬁbrillation signals is mainly
+divided into four parts, including data preprocessing, feature
+extraction, feature selection, and classi ﬁcation. Among them,
+feature extraction directly a ﬀects the accuracy and e ﬃciency
+of atrial ﬁbrillation signal classi ﬁcation. Commonly used fea-
+ture extraction in the literature usually falls into two catego-ries, traditional feature extraction and feature extractionbased on deep learning methods. Traditional feature extrac-tion methods are generally divided into three categories.Theﬁrst is to extract the statistical characteristics of ECG sig-
+nals, that is, use the statistical data to summarize a series ofECG data. Typical statistics include mean, maximum, mini-mum, variance, skewness, kurtosis, count, and percentage.Hindawi
+Computational and Mathematical Methods in Medicine
+Volume 2021, Article ID 6691177, 10 pages
+https://doi.org/10.1155/2021/6691177Kaya et al. [8] calculated the statistical and time characteris-
+tics of a heartbeat, such as skewness, kurtosis, standard, devi-ation, and average, and they used the best feature reductionand classi ﬁcation methods, the highest classi ﬁcation accu-
+racy, sensitivity, and speci ﬁcity rates of 99.30%, 98.84%,
+and 98.40%, respectively. Athif et al. [9] extracted statisticaland morphological features and then used a support vectormachine classiﬁ er to classify records into three categories:
+“normal, ”“AF,”and“other. ”The algorithm has a sensitivity
+of 77.5%, a speci ﬁcity of 97.9%, and an accuracy of 96.1% in
+the“Computing in Cardiology Challenge 2017” database.
+The second is signal processing, which is to transform theECG data from the time domain to the frequency domainor other domains through discrete Fourier transform, dis-crete wavelet transform, and other methods. Yin et al. [10]proposed a multidomain ECG feature extraction method.The RR intervals were extracted as time domain feature.Theﬁfth-order approximate coeﬃ cients of wavelet decom-
+position are used to represent the frequency domain features.In addition, the sample entropy values of six wavelet coeﬃ -
+cients are used as nonlinear characteristics. These three fea-
+tures were fed to a classi ﬁer for automated diagnosis. The
+average accuracy of the SVM classiﬁ er in the MIT-BIH
+arrhythmia database was 99.70%. The third is to directly
+extract the time domain or morphological features of ECGsignals, including RR interval, QRS wave width, and PRinterval. Dash et al. [11] used a statistical method to evaluatethe complexity, randomness, and variability of the RR inter-val. Veri ﬁcation by the MIT-BIH atrial ﬁbrillation database
+shows the sensitivity is 94.4%, and the speci ﬁcity is 95.1%.
+Zabihi et al. [12] adopted time-frequency, phase space,tuples, and other characteristics in multiple ﬁelds and used
+a random forest classi ﬁer for feature selection. F1 was
+82.6% on the PhysioNet Challenge 2017 atrial ﬁbrillation
+competition database. Deep learning feature extraction andclassiﬁcation include convolutional neural work (CNN) [13,
+14] and long and short memory networks (LSTM) [15, 16]as well as their variants [17, 18]. Warrick and Homsi [19]combined convolutional neural networks and long short-term memory networks (LSTM) and used pooling, step size,and normalization techniques to improve its accuracy. Thenetwork predicts a classi ﬁcation every 18 and then selects
+theﬁnal prediction for classi ﬁcation. The total F1 on the Phy-
+sioNet Challenge 2017 dataset is 80%.
+With the rapid development of deep learning, the advan-
+tages of feature-level fusion have become more and moreobvious. In recent years, some researchers have used featurefusion for ECG signal detection. Smole ń[20]ﬁrst used a
+sequential Recurrent Neural Network (RNN) classi ﬁer to
+get the probabilities for each class and then combined theprobabilities with hand-designed features. Finally, F1 is79% in PhysioNet Challenge 2017 (CinC 2017). Chu et al.[21] proposed a new method for arrhythmia classi ﬁcation
+based on multilead ECG signals; the core of the design is tofuse two types of deep learning features with some commontraditional features and then use a support vector machine
+(SVM) classi ﬁer to classify the feature vectors, and according
+to the AAMI standard, the accuracy on the 12-lead INCAET
+dataset is 88.565%. Ghiasi et al. [22] proposed two diﬀ erentclassiﬁcation methods, of which the ﬁrst is a feature-based
+method, and the second adopts a deep neural network.Finally, they used the decision table to combine the outputresults of the two methods and divided all records into threecategories. The proposed method is evaluated using a scoringfunction from the 2017 PhysioNet/CinC Challenge andachieved an overall score of 80% and 71% on the trainingdataset and hidden test dataset.
+This paper presents a robust method capable of detecting
+AF from single short ECG lead recording. Here are the fourmain contributions of
+this paper: (1) novel combination of
+deep learning and the traditional features; (2) proposed animproved residual network and gated recurrent unit net-work, which extracted deep learning features in spatial andtime series; (3) performing ECG feature fusion used discrim-inant canonical correlation analysis; and (4) achieving supe-rior classi ﬁcation results compared to the above-cited
+method of the same database [23 –27].
+The structure of this paper is as follows: Section 2 intro-
+duces the feature extraction method, Section 3 presents thefeature fusion method, Section 4 the performance metrics,
+Section 5 the experimental results and analysis, and Section
+6 the summary.
+2. Feature Extraction
+This section mainly introduces deep learning feature extrac-tion methods and traditional feature extraction methods
+based on expert knowledge.
+2.1. Dataset. This article uses a large dataset released by the
+PhysioNet/CinC Challenge in 2017, which contains 8528
+single-lead ECG records [28]. Each ECG record in the datasetis collected from an individual. Compared to most of theresearches based on the relatively simple dataset, such datasetis of higher research signi ﬁcance. These records are collected
+by AliveCor equipment. The dataset consists of single-leadECGs of 8528 subjects of di ﬀerent lengths (about 23,878
+heartbeats). The categories include normal rhythm, atrialﬁbrillation rhythm, other rhythms, and noise. The data dura-
+tion is 9-60 s. Table 1 shows the details of the database.
+2.2. Data Preprocessing
+2.2.1. Denoising and Padding. The Butterworth band-pass ﬁl-
+ter is used to denoise the original ECG. The frequency
+response of the Butterworth ﬁlter is maximally ﬂat (i.e., has
+no ripples) in the passband and rolls o ﬀtowards zero in the
+stopband [29]. The attenuation of the ﬁrst-order ﬁlter is
+6 dB per octave, and the attenuation rate of the sixth-orderButterworth ﬁlter is 36 dB per octave. Since the frequency
+range of the ECG signal is mainly concentrated in0.5 Hz ~45 Hz, the blocking frequency is set to 45 Hz here,
+and the frequency signal output above 45 Hz will be attenu-ated. Because the convolutional neural network requires theinput data to have the same size, but the length of the electri-
+cal signal in the center of the dataset is 9 seconds to 61 sec-
+onds, the ECG signal should be padded with zeros to adaptto the model.2 Computational and Mathematical Methods in Medicine2.2.2. Sample Balancing. Due to the uneven number of sam-
+ples in the database, the number of normal rhythms and
+other rhythm samples is large, namely, 5076 and 2415,respectively, while the number of atrial ﬁbrillation rhythms
+and noise samples is small, 758 and 279, respectively, whicheasily a ﬀect the performance of model training and over ﬁt-
+ting occurs. In this paper, class_weight is used to balancethe sample and it provides weights for each output class.The weight of normal and other signals is very small, whilethe weight of atrial ﬁbrillation and noise signal is much
+bigger. The class_weight method uses balance, and itsweight calculation method: n_samples/(n_classes ∗np.bin-
+count(y)), where n
+classes = 4 , np.bincount(y) is the total
+number of samples for a certain class, and n_sample isthe total number of samples, which is 8528. After calcula-tion, the weight of normal ECG recording is 0.42, theweight of the atrial ﬁbrillation signal is 2.81, the other
+weights are 0.88, and the weight of noise is 7.64.
+2.3. Deep Learning Feature Extraction. This paper adopts
+residual network and gated recurrent unit for deep learning
+network feature extraction, which can not only reduce thedepth of the network and e ﬀectively prevent over ﬁtting but
+also extract the timing characteristics of the signal whileextracting their spatial characteristics. The speci ﬁc network
+structure is shown in Figure 1.
+To deal with the degradation of neural networks, the
+method of establishing identity mapping with residual struc-ture simpli ﬁes the multilayer network into a shallower net-
+work. According to the characteristics of the residualnetwork, a one-dimensional residual network suitable forprocessing atrial ﬁbrillation signals is designed. The residual
+network consists of six residual convolution blocks. In theﬁrst two residual blocks, the ﬁlter is 16. The residual Conv-
+Block is composed of four convolution blocks and a one-
+dimensional average pooling layer. Each convolution block
+contains a one-dimensional convolution with a step lengthof 1, a batch normalization, a linear unit with leakage correc-tion, and a spatial random loss. The active layer is ﬁnally
+followed by a one-dimensional average pooling layer, thecommonly used batch normalization (BN), LeakyRelu, andSpatialDropout. The spatial random activation function pre-vents over ﬁtting, which is more conducive to promoting
+independence between feature maps than dropout. The num-ber of ﬁlters in every two residual blocks is doubled, and the
+convolution step length in each convolution block is 1. The
+data obtained through the residual network is input into
+the gated recurrent unit network, and the number of neuronsis set to 32; ﬁnally, the output of the last hidden layer is
+extracted as the deep learning feature.2.4. Traditional Feature Extraction. In fact, the ECG signal is
+used as input to extract relevant statistical features. First, themultilead di ﬀerential electrocardiogram summation absolute
+value and adaptive threshold real-time detection algorithm[30] are used to detect QRS points. Taking A0003 in the data-set as an example, the corresponding waveform and themarked R wave are shown in Figure 2.
+After the R wave is detected, the RR interval is calculated
+based on the R wave, and the RR interval is calculated asfollows:
+RRI =
+Rpeaks n+1ðÞ −Rpeaks nðÞ
+fs: ð1Þ
+RpeaksðnÞis the position of the nthRpeak in the sample,
+andfsis the sample rate. According to the RR interval and
+the traditional features of the ECG signal computed by QRSwave, these features are outputs as a feature vector. The RRinterval and P wave are shown in Figure 3 [31].Table 1: The PhysioNet 2017 dataset.
+Type Recording Average time length (s)
+Normal 5076 31.9
+AF 758 31.6
+Other rhythm 2415 34.1
+Noisy 279 27.1Conv (strides = 1)
+Batch normalization
+Leakyrelu
+Spatialdropout
+Convblock
+ConvblockConvblockConvblock
+Average poolingConv
+block
+Residualconvblock
+GRU
+Figure 1: Deep learning feature extraction uses ResNet (residual
+network) and GRU (gated recurrent unit).
+1500
+1500 25001000
+1000 2000 3000500
+5000
+0
+ECG
+Figure 2: ECG detection algorithm detects QRS.3 Computational and Mathematical Methods in Medicine2.4.1. RR Interval Feature. The statistical characteristics of RR
+intervals include standard deviation and variance, maximum
+RR interval, minimum RR interval, average RR interval,pNN50 (the proportion of the number of RR intervals inthe ECG sequence whose RR interval di ﬀerence is greater
+than 50 ms in all RR intervals), RMSSD (root mean squareof the di ﬀerence between the RR intervals), SDSD (standard
+deviation of the di ﬀerence between the RR intervals), and
+the mean, variance, skewness, and kurtosis of each of theRR intervals divided into six segments.
+2.4.2. P Wave Feature. The statistical characteristics of the P
+wave include the mean, variance, skewness, kurtosis, sample
+entropy, and sample entropy coeﬃ cient, and the P wave is
+divided into the average value, variance, and skewness ofeach of the six segments.
+2.4.3. Signal Procession Feature. In order to extract the fea-
+tures of the ECG signal more comprehensively, we also
+extract the signal features based on the medical ﬁeld and
+the frequency domain. These features ﬁrst transform ECG
+data from time domain into frequency domain; then,frequency-related features are extracted. In the presentedpaper, the periodogram power spectral density (PSD) andenergy spectral density are calculated. PSD is calculated usingFast Fourier Transform (FFT). After the transformation,energy within a speci ﬁc range (band) is obtained. The chosen
+bands are between 5 frequencies: 0.1, 6, 12, 20, and 30 Hz.Another four features compute the variation based on QRS[1], compute the sample entropy (SampleEn) [2], computethe coeﬃ cient of variation and density histograms (CDF)[3], compute the thresholding on the median absolute devia-
+tion (MAD) [4], and compute the heart rate variability
+(variability).
+3. Feature Fusion
+3.1. Feature Fusion Based on Feature Concatenation. Based
+on expert knowledge, this model performs time domainand frequency domain feature extraction on the denoisedECG signal to obtain feature vectors. It uses a convolutionresidual network and gated recurrent unit to form a deeplearning network, and input data ﬁlled ECG signal deep
+learning network to obtain deep feature vectors.
+The two feature vectors obtained are fused into one fea-
+ture vector in series and input into the classi ﬁer composed
+of the fully connected layers to classify ECG signals, as shown
+in Figures 4 and 5. This method is simple and but highly
+applicable. Compared with single feature extraction and clas-siﬁcation [33], this method has improved accuracy [32].
+However, since the method of fusion features is simple andRR interval
+RR
+T
+U P P
+Q Q
+S S
+Figure 3: RR intervals and P waves [32].
+Data1 Data2
+Expert extracter Deep extracter
+Concatenate
+FCECG data
+Denoising Padding
+Figure 4: The structure of the proposed simple feature fusion.Traditional
+features
+Deep learning
+featureConcatenate
+Figure 5: The speci ﬁc process of simple feature fusion.
+ECG data
+ResNet+GRU
+extracterExpert extracter
+Expert feature Deep feature
+Feature transformation based on DCCA
+Expert feature⁎Deep feature⁎
+Concatenation
+FC
+Figure 6: The structure of the proposed DCCA feature fusion.4 Computational and Mathematical Methods in Medicinerough, there are problems of redundancy and a large amount
+of calculation [34].
+3.2. Feature Fusion Based on DCCA. In view of the shortcom-
+ings of the above-mentioned concatenation method, this sec-
+tion uses discriminant canonical correlation analysis(DCCA) [35] for feature fusion. DCCA is an improvementin canonical correlation analysis (CCA) [36]. The CCA fea-ture fusion process does not consider the class structure.The DCCA method can not only optimize the correlationamong the four types of samples but also minimize the corre-lation among the features of di ﬀerent types of samples. The
+proposed DCCA feature fusion method is shown in Figure 6.
+In this paper, the discriminant canonical correlation
+analysis (DCCA) method is used for deep learning featureand traditional feature fusion, the preprocessed ECG signalsare extracted separately to obtain two feature vectors, andthen the DCCA method is used for feature fusion. The spe-ciﬁc implementation is divided into four steps as follows:
+(1) Find a set of projection direction w
+xand wyto
+achieve the maximum correlation among the fea-tures of samples of the same type and the mini-mum correlation among the features of di ﬀerent
+types of samples. Mathematically, DCCA is to
+maximize the correlation coe ﬃcient. The formula
+is as follows:
+J
+dwx,wy/C0/C1=wT
+x~Sxywyﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃﬃ
+wT
+xSxxwxwTySyywyq , ð2Þ
+where ~Sxy=Sw−ηSb(adjustable parameter > 0 ),Swis the
+intraclass correlation matrix, Sbis the interclass correlation
+matrix, adjustable parameters ηmeasure the relativity of
+the intraclass correlation and the interclass correlation of
+the sample characteristics, and the de ﬁnitions of intraclass
+correlation and interclass correlation are shown in Figure 7
+(2) Calculate the intraclass correlation matrix Swand the
+interclass correlation matrix Sb, and set the processed
+sample set asX=x1ðÞ
+1,⋯x1ðÞn1,⋯,xcðÞ1,x1ðÞ
+nchi
+∈Rp×n,
+Y=y1ðÞ
+1,⋯,y1ðÞn1,⋯,ycðÞ1,y1ðÞ
+nchi
+∈Rq×n:ð3Þ
+Then, the intraclass correlation matrix and the interclass
+correlation matrix are, respectively, shown as
+Sw=〠c
+i=1〠ni
+k=1〠ni
+l=1xiðÞ
+kyiðÞT
+l=XDYT, ð4Þ
+where Dis a block diagonal matrix, which is also a positive
+semide ﬁnite matrix. The di ﬀerence between the interclass
+correlation matrix and the intraclass correlation matrix is just
+a negative sign [37]
+(3) Solve the eigenvalues and eigenvectors. The optimi-
+zation problem of DCCA can be transformed into
+max wT
+xSwwys:t:wTxSxxwx=wTySyywy=1 : ð5Þ
+Use the Lagrangian multiplier method to solve the above
+optimization problem turning the above problem into a
+problem of ﬁnding characteristic roots and characteristic
+vectors.
+SwS−1
+yySwðÞTwx=λ2Sxxwx,
+SwðÞTS−1
+xxSwwy=λ2Syywy:ð6Þ
+The eigenvector fwx,wygd
+1corresponds to the ﬁrst d gen-
+eralized eigenvalues, and the λ1≥λ2≥λd
+(4) For each pair of samples ðx,yÞ, fusion is performed
+according to the tandem method. The block diagram
+of feature fusion using the DCCA algorithm is shownin Figure 8Figure 7: A graphical representation of the relationship between sample characteristics. Among them, hexagon and circle represent each
+feature, solid line represents the correlation within the class, and dashed line represents the correlation between classes.
+DCCA Zf = (Z1d, Z2d)Xp
+Z2d = WxYZ1d = WxX
+YqWx
+Wy
+Figure 8: Block diagram for realizing canonical correlation analysis.5 Computational and Mathematical Methods in Medicine4. Performance Metrics
+In order to optimize the atrial ﬁbrillation detection model, a
+large number of experiments are carried out using a single-
+lead ECG dataset. The experiment in this article is to trainon a server equipped with Tesla V100-SXM2 GPU andUbuntu 16.04 operating system, and its dynamic memoryof the computer is 32480MiB.
+In this paper, normal F1 score, atrial ﬁbrillation F1 score,
+other F1 score, and the average value of three categories of F1score are four metrics for evaluating the classi ﬁcation perfor-
+mance of the experiments. The de ﬁnition of these four met-
+rics can be de ﬁned as
+F
+1a=2×Aa
+∑A+∑a, ð7Þ
+where Ais the total number of signals identi ﬁed as atrial
+ﬁbrillation by the algorithm, Aais the number of signals cor-
+rectly classi ﬁed as atrial ﬁbrillation by the algorithm, and ais
+the total number of atrial ﬁbrillation signals.
+F1n=2×Nn
+∑N+∑n, ð8Þ
+where Nis the total number of normal signals recognized by
+the algorithm, Nnis the number of correct signals classi ﬁed
+as normal by the algorithm, and nis the total number of nor-
+mal signals.
+F1o=2×Oo
+∑O+∑o, ð9Þ
+where Ois the total number of signals identi ﬁed by the algo-
+rithm as “other, ”Oois the correct number of signals classi ﬁed
+by the algorithm as “other, ”and ois the total number of
+“other ”signals.
+F1p=2×Pp
+∑P+∑p, ð10Þ
+where Pis the total number of noise signals recognized by thealgorithm, Ppis the correct number of noise signals classi ﬁed
+by the algorithm, and pis the total number of noise signals.
+Foverall =F1n+F1a+F1o ðÞ
+3: ð11Þ
+Because the noise signals are too small and unbalanced,
+the result of the entire dataset is unstable, and the ﬁrst three
+types of signals are selected as the ﬁnal F1 index. Even so, the
+F1 score of noise will also aﬀ ect the other three types. In addi-
+tion to F1, we also use true positive (TP), true negative (TN),false positive (FP), and false negative (FN) to calculate
+DenoisingR wave
+identificationP wave featureRR-interval
+features
+Signal
+procession
+featureXGBoost
+classifierECG
+Figure 9: Block diagram of AF by traditional feature experimental pipeline.
+ECG
+Padding
+BN
+LeakyRelu
+Dropout (0.1)Conv1D (strides = 1)
+BN
+LeakyRelu
+Dropout (0.1)Conv1D (strides = 1)
+BN
+LeakyRelu
+Dropout (0.1)Conv1D (strides = 1)BN
+LeakyRelu
+Dropout (0.1)Conv1D (strides = 1)
+Average poolingX6
+GRU (32)
+Dense (4)
+Figure 10: Block diagram of AF by deep learning feature
+experimental pipeline.6 Computational and Mathematical Methods in Medicineaccuracy (Acc), speci ﬁcity (Spe), and sensitivity (Sen). The
+calculation formula is as follows:
+Acc =TP + TN
+TP + TN + FP + FN,
+Spe =TN
+TN + FP,
+Sen =TP
+TP + FN:ð12Þ
+5. Results
+Four experiments are used to verify the feasibility and e ﬃ-
+ciency of the proposed feature fusion model. The ﬁrst three
+experiments are comparative experiments.
+5.1. Experiments Based on Single Feature
+5.1.1. Experiments Based on Traditional Feature. In this
+experiment, after the ECG signal is denoised, its statisticalfeatures and frequency domain features are extracted
+manually based on expert knowledge, and ﬁnally, the XGBoost
+(Extreme Gradient Boosting) classi ﬁer is used for classi ﬁca-
+tion. The experimental block diagram based on traditional fea-ture extraction and classi ﬁcation is shown in Figure 9.
+The XGBoost parameters are tuned using random grid
+search cross-validation, and the optimal parameters areselected. The minimum leaf node weight is set to 20, the max-imum depth of the tree is set to 11, the subsample is set to 0.8,the colsample_bytree is set to 0.9, the learning rate is 0.2, andthe maximum depth of the tree is 11.
+The minimum loss function is reduced to 1, the softmax
+objective function is used for classi ﬁcation, and the ﬁnal F1 is
+75%.
+5.1.2. Experiments Based on Deep Learning Feature. In this
+experiment, the ECG signal is detected based on the model
+of residual network and gated recurrent unit. The experimen-tal block diagram of using deep learning feature extraction toclassify atrial ﬁbrillation is shown in Figure 10.0 2 04 06 08 0 1 0 0
+Epoch0.500.550.600.650.700.750.800.850.900.951.00Accuracy
+Simple_train
+Simple_test
+Figure 11: The accuracy diagram of series feature fusion.
+0 2 04 06 08 0 1 0 0
+EpochLoss
+0.20.30.40.50.60.70.80.91.01.1
+Simple_train
+Simple_test
+Figure 12: The loss diagram of series feature fusion.0 2 04 06 08 0 1 0 0
+Epoch0.500.550.600.650.700.750.800.850.900.951.00Accuracy
+Dcca_trainDcca_test
+Figure 13: The accuracy diagram of DCCA feature fusion.
+0 2 04 06 08 0 1 0 0
+EpochLoss
+0.20.30.40.50.60.70.80.91.01.1
+Dcca_trainDcca_test
+Figure 14: The loss diagram of DCCA feature fusion.7 Computational and Mathematical Methods in MedicineFirstly, padding the original ECG data. Since the central
+electrical data of the database varies from 9 s to 61 s and the
+convolutional network requires equal length input, the ECGdata is padded the same length. This paper uses the maxi-mum length of the ECG signal. The sampling rate is300 Hz, and the calculated maximum length is 18286. EachECG data is inputted into the residual network. The residual
+network includes six residual convolution blocks, and each of
+them consists of a convolution block, a residual block, and aone-dimensional average pooling layer. Each convolutionalblock includes four parts: a one-dimensional convolutionlayer with a step size of 1, a batch normalization layer, a linearunit with leakage correction, and a spatial random inactiva-tion layer. After the residual network, data is inputted tothe gated recurrent unit for training. The number of neuronsin the gated recurrent unit is 32. Finally, it is output throughthe fully connected layer. F1 ended up at 83%.
+5.2. Experiments Based on Feature Concatenation Fusion. In
+this experiment, the features are simply spliced and fused
+and input to the fully connected layer for classi ﬁcation.
+The feature vectors based on expert knowledge and the
+feature vectors extracted by the residual network and gatedrecurrent unit are spliced in series to obtain the fused featuresand input to the fully connected layer for classi ﬁcation. The
+speciﬁc process is as follows: ﬁrstly, add a ﬂatten layer to
+make the traditional feature vector one-dimensional; then,use the deep learning model for training, the output of thelast hidden layer of the recurrent unit as the deep learningfeature vectors; ﬁnally, use the concatenation method to inte-
+grate the two feature vectors into one, and add a fullyconnected layer for classi ﬁcation. The value of F1 is 85%,
+and the accuracy and loss diagrams are shown in Figures 11
+and 12.
+5.3. Experiments Based on DCCA Feature Fusion. In this
+experiment, the feature vectors extracted by the traditional
+feature extraction method based on expert knowledge andthe deep learning feature vectors extracted using the gatedrecurrent unit and residual network are fused with discrimi-nant canonical correlation analysis and then input to the fullyconnected layer for feature classi ﬁcation. The ﬁnal accuracy
+on the veri ﬁcation set is 91.7, and F1 is 88%. The accuracy
+and loss diagrams are shown in Figures 13 and 14. FromTable 2, it can be seen that the DCCA-based fusion methodis better than the concatenation fusion method. Compared
+with simple concatenation fusion, the DCCA method con-
+siders the correlation among samples and the categoryinformation of the sample, which contains less redundantinformation than the series fusion method.
+As can be seen from Table 2 and Figure 12, that com-
+pared to using single feature, the method of feature fusionfor AF signal detection can obtain better classi ﬁcation accu-
+racy. Compared with single feature extraction, the F1 scoreis increased by 2% when using simple feature fusion, andcompared with the simple feature fusion method, the F1score is increased by 3% when using DCCA feature fusion.
+5.4. Experimental Comparative Analysis. In order to verify
+the eﬀectiveness of the proposed method, comparisons are
+also performed with previous studies. Table 3 lists some of
+the published ECG signal detection research results basedon the same dataset, which includes traditional feature
+extraction, machine learning based on expert knowledge,
+and deep learning-based methods. It can be seen fromTable 3 that the use of a single method requires complex pre-processing, and the ﬁnal F1 value is 79.4%, which is not ideal
+[24]. The signal detection model using the expert knowledgefeature extraction algorithm has better interpretability. Onthe other hand, deep neural networks are used to autono-mously learn features from ECG records. The conventionalmethod is very easy to learn. Xiong et al. [25] proposed a16-layer deep convolutional neural network for the auto-matic classiﬁ cation of ECG signal, the ﬁnal F1 is 82.0%, and
+the accuracy is 80.2%. The feature fusion method based ondiscriminative canonical correlation analysis proposed in thispaper can fuse the advantages of the two and achieve a moreideal result. The F1 value is 88%. The accuracy, sensitivity,Table 2: The result of the di ﬀerent model.
+Model F1n F1a F1o Foverall Acc Spe Sen
+Expert features 87% 73% 65% 75% 79% 82% 72%
+Resnet+GRU 91% 81% 77% 83% 86% 85% 84%
+Simple fusion 92% 83% 80% 85% 88% 89% 86%
+Proposed 93% 88% 84% 88% 92% 93% 90%
+Table 3: Comparison of previous studies of ECG based on the PhysioNet/CinC challenge 2017 public dataset.
+Method F1n F1a F1o Foverall Acc Spe Sen
+Convolutional recurrent neural network [23] 92.4% 81.4% 80.9% 84.9% 87.5% 94.6% 82.9%
+Decision tree ensemble [24] 88.9% 79.1% 70.2% 79.4% —— —— ——
+16-layer 1D residual convolutional network [25] 90.0% 82.0% 75.0% 82.0% 80.2% —— ——
+2D convolutional network with LSTM layer [26] 88.8% 76.4% 72.6% 79.2% 82.3% —— ——
+1DCNN containing residual blocks and recurrent layers [27] 91.9% 85.8% 81.6% 86.4% —— —— ——
+Proposed in this paper 93.1% 88.3% 84.0% 88.3% 91.7% 93.2% 90.4%%8 Computational and Mathematical Methods in Medicineand speci ﬁcity are 91.7%, 90.4%, and 93.2%, respectively,
+conducive to more accurate ECG signal detection. It is fore-
+seeable that with the further accumulation of datasets, thefeature fusion model can achieve more powerful classi ﬁca-
+tion capabilities.
+6. Conclusion
+This paper proposes a classi ﬁcation method for atrial ﬁbrilla-
+tion signals based on the feature fusion of discriminantcanonical correlation analysis. This method can not onlyextract the deep learning features of ECG signals but also fusethe traditional features of ECG signal samples. With DCCA,the maximum and minimum correlations among classes ofdiﬀerent sample types are considered, and the recognition
+results are better than that of series feature fusion as well asthe use of deep learning or traditional features alone. Thismethod has been veri ﬁed on the public short single-lead
+ECG dataset of the 2017 PhysioNet/CinC Challenge, with averiﬁcation accuracy of 91.7%, a sensitivity of 90.4%, and a
+speciﬁcity of 93.2%. The database used in this article itself
+has the problem of large di ﬀerences among various catego-
+ries, which shows that the fusion method in this articleimproves the overall accuracy while taking into accountother measurement standards, and steadily improves theclassiﬁcation performance of ECG signals. However, this
+paper only considers the comprehensive and complementaryrepresentation of ECG features through feature-level fusionand does not consider the fusion of decision-making layers,
+such as neural network algorithms, hidden Markov models,
+and combinations of multiple classi ﬁers. In future researches,
+the classi ﬁcation model and feature fusion method will be
+further improved. On the basis of DCCA feature fusion tech-nology, core-based DCCA will be introduced. At the sametime, more cutting-edge classi ﬁers will be selected for classi-
+ﬁcation and recognition, which will be more e ﬀective to
+improve recognition results.
+Data Availability
+The datasets used during the present study are availablefrom the corresponding author upon reasonable requestor can be downloaded from https://www.physionet.org/content/challenge-2017/1.0.0/.
+Conflicts of Interest
+The authors declare no conﬂ ict of interest.
+Authors ’Contributions
+Q.Z. and C.C. performed the conceptualization; J.S. contrib-uted to the methodology; J.S. and C.C. helped in the valida-tion; Q.Z., H.L., and M.S. performed the formal analysis;
+J.S. did the investigation; Q.Z., H.L., and M.S. helped in ﬁnd-
+ing resources; J.S. wrote and prepared the original draft; C.C.
+and Q.Z. wrote, reviewed, and edited the manuscript; Q.Z.did the supervision, project administration, and fundingacquisition. All authors have read and agreed to the pub-lished version of the manuscript.
+References
+[1] S. A. Shufni and M. Y. Mashor, “ECG signals classiﬁ cation
+based on discrete wavelet transform, time domain and fre-
+quency domain features, ”in2015 2nd international conference
+on biomedical engineering (ICoBE) , pp. 1–6, Penang, Malaysia,
+2015.
+[2] M. Romano, P. Bifulco, A. M. Ponsiglione, G. D. Gargiulo,
+F. Amato, and M. Cesarelli, “Evaluation of ﬂoatingline and
+foetal heart rate variability, ”Biomedical Signal Processing and
+Control , vol. 39, pp. 185 –196, 2018.
+[3] A. Lyon, A. Mincholé, J. P. Martínez, P. Laguna, and
+B. Rodriguez, “Computational techniques for ECG analysis
+and interpretation in light of their contribution to medicaladvances, ”Journal of the Royal Society Interface , vol. 15,
+no. 138, p. 20170821, 2018.
+[4] Z. Ebrahimi, M. Loni, M. Daneshtalab, and A. Gharehbaghi,
+“A review on deep learning methods for ECG arrhythmia clas-
+siﬁcation, ”Expert Systems with Applications: X , vol. 7, article
+100033, 2020.
+[5] O. Berenfeld and J. Jalife, “Complex fractionated atrial electro-
+grams: is this the beast to tame in atrial ﬁbrillation?, ”Circula-
+tion: Arrhythmia and Electrophysiology , vol. 4, no. 4, pp. 426 –
+428, 2011.
+[6] S. A. Guidera and J. S. Steinberg, “The signal-averaged p wave
+duration: a rapid and noninvasive marker of risk of atrial ﬁbril-
+lation, ”Journal of the American College of Cardiology , vol. 21,
+no. 7, pp. 1645 –1651, 1993.
+[7] S. Mehta, N. Lingayat, and S. Sanghvi, “Detection and delinea-
+tion of p and t waves in 12-lead electrocardiograms, ”Expert
+Systems , vol. 26, no. 1, pp. 125 –143, 2009.
+[8] Y. Kaya, H. Pehlivan, and M. E. Tenekeci, Eﬀective ECG Beat
+Classi ﬁcation Using Higher Order Statistic Features and
+Genetic Feature Selection, Biomedical Research, India, 2017.
+[9] M. Athif, P. C. Yasawardene, and C. Daluwatte, “Detecting
+atrial ﬁbrillation from short single lead ECGs using statistical
+and morphological features, ”Physiological Measurement ,
+vol.39,no. 
+6, article 064002, 2018.
+[10] L. Yin, F. Chen, Q. Zhang, and X. Ma, “Arrhythmia classiﬁ ca-
+tion based on multi-domain feature extraction, ”Journal of
+Physics: Conference Series , vol. 1237, no. 2, article 022062,
+2019.
+[11] S. Dash, K. Chon, S. Lu, and E. Raeder, “Automatic real time
+detection of atrial ﬁbrillation, ”Annals of Biomedical Engineer-
+ing, vol. 37, no. 9, pp. 1701 –1709, 2009.
+[12] M. Zabihi, A. B. Rad, A. K. Katsaggelos, S. Kiranyaz,
+S. Narkilahti, and M. Gabbouj, “Detection of atrial ﬁbrillation
+in ECG hand-held devices using a random forest classiﬁ er,”in
+2017 Computing in Cardiology Conference (CinC) , Rennes,
+France, 2017.
+[13] S. Kiranyaz, T. Ince, and M. Gabbouj, “Real-time patient-
+speciﬁc ECG classiﬁ cation by 1d convolutional neural net-
+works, ”IEEE Transactions on Biomedical Engineering ,
+vol. 63, no. 3, pp. 664 –675, 2016.
+[14] M. Zubair, J. Kim, and C. Yoon, “An automated ECG beat clas-
+siﬁcation system using convolutional neural networks, ”in
+2016 6th International Conference on IT Convergence and
+Security (ICITCS), pp. 1–5, Prague, Czech Republic, 2016.9 Computational and Mathematical Methods in Medicine[15] C. Zhang, G. Wang, J. Zhao, P. Gao, J. Lin, and H. Yang,
+“Patient-speci ﬁc ECG classiﬁ cation based on recurrent neural
+networks and clustering technique, ”inIASTED Int Conf Bio-
+medical Engineering , Innsbruck, Austria, 2017.
+[16] O. Faust, A. Shen ﬁeld, M. Kareem, T. R. San, H. Fujita, and U. R.
+Acharya, “Automated detection of atrial ﬁbrillation using long
+short-term memory network with RR interval signals, ”Com-
+puters in Biology and Medicine ,v o l .1 0 2 ,p p .3 2 7 –335, 2018.
+[17] R. S. Andersen, A. Peimankar, and S. Puthusserypady, “A deep
+learning approach for real-time detection of atrial ﬁbrillation, ”
+Expert Systems with Applications , vol. 115, pp. 465 –473, 2019.
+[18] X. Fan, Q. Yao, Y. Cai, F. Miao, F. Sun, and Y. Li, “Multiscaled
+fusion of deep convolutional neural networks for screening
+atrial ﬁbrillation from single lead short ECG recordings, ”IEEE
+Journal of Biomedical and Health Informatics, vol. 22, no. 6,pp. 1744 –1753, 2018.
+[19] P. Warrick and M. N. Homsi, “Cardiac arrhythmia detection
+from ECG combining convolutional and long short-termmemory networks, ”in2017 computing in cardiology (Cin C) ,
+pp. 1–4, Rennes, France, 2017.
+[20] D. Smole ń,“Atrial ﬁbrillation detection using boosting and
+stacking ensemble, ”in2017 computing in cardiology (Cin C) ,
+pp. 1–4, Rennes, France, 2017.
+[21] J. Chu, H. Wang, and L. U. Wei, “A novel two-lead arrhythmia
+classiﬁ cation system based on cnn and lstm, ”Journal of
+Mechanics in Medicine and Biology , vol. 19, no. 3, article
+1950004, 2019.
+[22] S. Ghiasi, M. Abdollahpur, N. Madani, K. Kiyani, and
+A. Ghaﬀ ari,“Atrial ﬁbrillation detection using feature based
+algorithm and deep convolutional neural network, ”in2017
+computing incardiology
+(Cin C) , pp. 1–4, Rennes, France,
+2017.
+[23] J. Van Zaen, O. Chételat, M. Lemay, E. Calvo, and R. Delgado-
+Gonzalo, “Classiﬁ cation of cardiac arrhythmias from single
+lead ECG with a convolutional recurrent neural network, ”in
+Proceedings of the 12th International Joint Conference on Bio-medical Engineering Systems and Technologies , pp. 33 –41, Pra-
+gue, Czech Republic, 2019.
+[24] R. Muhammed, M. Whitaker Bradley, and V. Anderson David,
+“AF detection from ECG recordings using feature selection,
+sparse coding, and ensemble learning, ”Physiological Measure-
+ment, vol. 39, no. 12, article 124007, 2018.
+[25] X. Zhaohan, K. Stiles Martin, and Z. Jichao, “Robust ECG sig-
+nal classiﬁ cation for detection of atrial ﬁbrillation using a novel
+neural network, ”in2017 Computing in Cardiology (Cin C) ,
+pp. 1–4, Rennes, France, 2017.
+[26] Z. Martin, P. Dmytro, and T. Michael, “Convolutional recur-
+rent neural networks for electrocardiogram classi ﬁcation, ”in
+2017 Computing in Cardiology (Cin C) , pp. 1–4, Rennes,
+France, 2017.
+[27] Z. Xiong, M. P. Nash, E. Cheng, V. V. Fedorov, M. K. Stiles,
+and J. Zhao, “ECG signal classiﬁ cation for the detection of car-
+diac arrhythmias using a convolutional recurrent neural net-
+work, ”Physiological Measurement , vol. 39, no. 9, article
+094006, 2018.
+[28] A. L. Goldberger, L. A. Amaral, L. Glass et al., “PhysioBank,
+PhysioToolkit, and PhysioNet: components of a new research
+resource for complex physiologic signals, ”Circulation ,
+vol. 101, no. 23, pp. e215 –e220, 2000.
+[29] G. Bianchi and R. Sorrentino, Electronic Filter Simulation &
+Design , McGraw Hill Professional, 2007.[30] I. I. Christov, “Real time electrocardiogram QRS detection
+using combined adaptive threshold, ”BioMedical Engineering
+OnLine , vol. 3, no. 1, p. 28, 2004.
+[31] J. M. Bote, J. Recas, F. Rincon, D. Atienza, and R. Hermida, “A
+modular low-complexity ECG delineation algorithm for real-time embedded systems, ”IEEE Journal of Biomedical and
+Health Informatics , vol. 22, no. 2, pp. 429 –441, 2018.
+[32] C.
+Huang, Y. Jin, Q. Wang, L. Zhao, and C. Zou, “Multi-modal
+emotion recognition based on speech signal and ECG signal, ”
+Journal of Southeast University (Natural Science Edition) ,
+vol. 40, no. 5, pp. 895 –900, 2010.
+[33] L. Fengjuan, Research on Face Recognition Method Based on
+Canonical Correlation Analysis, Nanjing University of Scienceand Technology, Jiangsu, 2009.
+[34] H. P. Martínez and G. N. Yannakakis, “Deep multimodal
+fusion: combining discrete events and continuous signals, ”in
+Proceedings of the 16th International conference on multimodalinteraction , pp. 34–41, Bogazici University, Istanbul, Turkey,
+2014.
+[35] Q.-S. Sun and P.-A. Heng, “Face recognition based on general-
+ized canonical correlation analysis, ”inAdvances in Intelligent
+Computing, Springer, Berlin Heidelberg, 2005.
+[36] H. Hotelling, “Relations between two sets of variates, ”Biome-
+trika , vol. 28, no. 3-4, pp. 321 –377, 1936.
+[37] S. Hoch, F. Altho ﬀ, G. McGlaun, and G. Rigoll, “Bimodal
+fusion of emotional data in an automotive environment, ”in
+Proceedings.(ICASSP'05). IEEE International Conference onAcoustics, Speech, and Signal Processing , vol. 2, pp. ii/1085 –
+ii/1088, Philadelphia, PA, USA, 2005.10 Computational and Mathematical Methods in Medicine
