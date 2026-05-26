@@ -119,6 +119,8 @@ def train_deep_model(model, train_loader, val_loader, class_weights, epochs=20, 
         val_loss /= len(val_loader.dataset)
         val_acc = correct / total
         
+        print(f"  Epoch {epoch+1}/{epochs} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f}")
+        
         # Save best model
         if val_loss < best_val_loss:
             best_val_loss = val_loss
@@ -184,6 +186,8 @@ def train_fusion_classifier(classifier, Z_train, y_train, Z_val, y_val, class_we
             outputs_val = classifier(batch_z_val)
             loss = criterion(outputs_val, batch_y_val)
             val_loss = loss.item()
+            
+        print(f"  Epoch {epoch+1}/{epochs} | Val Loss: {val_loss:.4f}")
             
         if val_loss < best_val_loss:
             best_val_loss = val_loss
