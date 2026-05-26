@@ -2,6 +2,29 @@ import torch
 import torch.nn as nn
 import numpy as np
 from scipy.linalg import inv, eigh
+import config as cfg
+
+class SqueezeExcitation1D(nn.Module):
+    """
+    1D Squeeze-and-Excitation (SE) block for channel attention.
+    """
+    def __init__(self, channels, reduction=16):
+        super().__init__()
+        # Ensure reduction does not reduce channels to 0
+        reduced_channels = max(1, channels // reduction)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, reduced_channels, bias=False),
+            nn.ReLU(inplace=True),
+            nn.Linear(reduced_channels, channels, bias=False),
+            nn.Sigmoid()
+        )
+        
+    def forward(self, x):
+        # x: [B, C, L]
+        b, c, _ = x.size()
+        y = x.mean(dim=-1) # Global Average Pooling -> [B, C]
+        y = self.fc(y).view(b, c, 1) # [B, C, 1]
+        return x * y
 
 class ConvBlock1D(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, dropout_rate=0.1):
@@ -14,8 +37,35 @@ class ConvBlock1D(nn.Module):
     def forward(self, x):
         return self.dropout(self.activation(self.bn(self.conv(x))))
 
-class ResidualConvBlock1D(nn.Module):
+class MultiScaleConvBlock1D(nn.Module):
+    """
+    Multi-Scale Convolutional Block.
+    Extracts features using multiple kernel sizes (3, 7, 15) in parallel
+    to capture both narrow QRS complexes and wide P/T-waves.
+    """
     def __init__(self, in_channels, out_channels, dropout_rate=0.1):
+        super().__init__()
+        # Parallel convolutions with kernel sizes 3, 7, 15
+        self.conv3 = nn.Conv1d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.conv7 = nn.Conv1d(in_channels, out_channels, kernel_size=7, padding=3)
+        self.conv15 = nn.Conv1d(in_channels, out_channels, kernel_size=15, padding=7)
+        
+        # Merge outputs
+        self.proj = nn.Conv1d(out_channels * 3, out_channels, kernel_size=1)
+        self.bn = nn.BatchNorm1d(out_channels)
+        self.activation = nn.LeakyReLU(0.1)
+        self.dropout = nn.Dropout1d(dropout_rate)
+        self.pool = nn.AvgPool1d(kernel_size=2, stride=2)
+        
+    def forward(self, x):
+        c3 = self.conv3(x)
+        c7 = self.conv7(x)
+        c15 = self.conv15(x)
+        merged = torch.cat([c3, c7, c15], dim=1)
+        return self.pool(self.dropout(self.activation(self.bn(self.proj(merged)))))
+
+class ResidualConvBlock1D(nn.Module):
+    def __init__(self, in_channels, out_channels, dropout_rate=0.1, use_se=False):
         super().__init__()
         self.conv_blocks = nn.Sequential(
             ConvBlock1D(in_channels, out_channels, kernel_size=3, dropout_rate=dropout_rate),
@@ -27,55 +77,102 @@ class ResidualConvBlock1D(nn.Module):
             self.shortcut = nn.Conv1d(in_channels, out_channels, kernel_size=1)
         else:
             self.shortcut = nn.Identity()
+            
+        self.use_se = use_se
+        if use_se:
+            self.se = SqueezeExcitation1D(out_channels)
+            
         self.pool = nn.AvgPool1d(kernel_size=2, stride=2)
         
     def forward(self, x):
         out = self.conv_blocks(x)
         shortcut = self.shortcut(x)
         out = out + shortcut
+        if self.use_se:
+            out = self.se(out)
         out = self.pool(out)
         return out
 
+class AttentionPooling(nn.Module):
+    """
+    Attention pooling layer to focus on irregular rhythm regions (like AF) across time.
+    """
+    def __init__(self, input_dim):
+        super().__init__()
+        self.attn = nn.Sequential(
+            nn.Linear(input_dim, input_dim // 2),
+            nn.Tanh(),
+            nn.Linear(input_dim // 2, 1)
+        )
+        
+    def forward(self, x, mask=None):
+        # x: [batch_size, seq_len, input_dim]
+        # mask: [batch_size, seq_len]
+        attn_scores = self.attn(x).squeeze(-1) # [batch_size, seq_len]
+        
+        if mask is not None:
+            attn_scores = attn_scores.masked_fill(mask == 0, -1e9)
+            
+        attn_weights = torch.softmax(attn_scores, dim=-1).unsqueeze(-1) # [batch_size, seq_len, 1]
+        context = torch.sum(x * attn_weights, dim=1) # [batch_size, input_dim]
+        return context
+
 class ResNetGRUFeatureExtractor(nn.Module):
     """
-    1D-ResNet followed by GRU to extract deep features from ECG raw signals.
+    1D-ResNet followed by BiGRU/BiLSTM to extract deep features from ECG raw signals.
     """
-    def __init__(self, in_channels=1, gru_hidden=64, dropout_rate=0.1):
+    def __init__(self, in_channels=1, gru_hidden=128, dropout_rate=0.1):
         super().__init__()
+        # Gradual filter count scaling: 16 -> 32 -> 64 -> 128
         self.blocks = nn.Sequential(
-            # Blocks 1 and 2: 16 filters
-            ResidualConvBlock1D(in_channels, 16, dropout_rate),
-            ResidualConvBlock1D(16, 16, dropout_rate),
+            # Block 1: Multi-scale features (16 filters)
+            MultiScaleConvBlock1D(in_channels, 16, dropout_rate),
+            ResidualConvBlock1D(16, 16, dropout_rate, use_se=cfg.USE_SE_BLOCK),
             # Blocks 3 and 4: 32 filters
-            ResidualConvBlock1D(16, 32, dropout_rate),
-            ResidualConvBlock1D(32, 32, dropout_rate),
+            ResidualConvBlock1D(16, 32, dropout_rate, use_se=cfg.USE_SE_BLOCK),
+            ResidualConvBlock1D(32, 32, dropout_rate, use_se=cfg.USE_SE_BLOCK),
             # Blocks 5 and 6: 64 filters
-            ResidualConvBlock1D(32, 64, dropout_rate),
-            ResidualConvBlock1D(64, 64, dropout_rate)
+            ResidualConvBlock1D(32, 64, dropout_rate, use_se=cfg.USE_SE_BLOCK),
+            ResidualConvBlock1D(64, 64, dropout_rate, use_se=cfg.USE_SE_BLOCK),
+            # Blocks 7 and 8: 128 filters (dynamic expansion)
+            ResidualConvBlock1D(64, 128, dropout_rate, use_se=cfg.USE_SE_BLOCK),
+            ResidualConvBlock1D(128, 128, dropout_rate, use_se=cfg.USE_SE_BLOCK)
         )
         
-        self.gru = nn.GRU(
-            input_size=64,
-            hidden_size=gru_hidden,
-            num_layers=1,
-            batch_first=True,
-            bidirectional=True # Bidirectional to capture both directions, 2 * gru_hidden output
-        )
-        
+        # Configure Recurrent layer based on configs
+        if cfg.RNN_TYPE == 'BiLSTM':
+            self.rnn = nn.LSTM(
+                input_size=128,
+                hidden_size=gru_hidden,
+                num_layers=1,
+                batch_first=True,
+                bidirectional=True
+            )
+        else:
+            self.rnn = nn.GRU(
+                input_size=128,
+                hidden_size=gru_hidden,
+                num_layers=1,
+                batch_first=True,
+                bidirectional=True
+            )
+            
+        self.use_attention_pooling = cfg.USE_ATTENTION_POOLING
+        if self.use_attention_pooling:
+            self.attn_pooling = AttentionPooling(gru_hidden * 2)
+            
         self.out_dim = gru_hidden * 2
         
     def forward(self, x, mask=None):
         # x: [batch_size, 1, seq_len]
-        features = self.blocks(x) # [batch_size, 64, downsampled_seq_len]
-        features = features.permute(0, 2, 1) # [batch_size, downsampled_seq_len, 64]
+        features = self.blocks(x) # [batch_size, 128, downsampled_seq_len]
+        features = features.permute(0, 2, 1) # [batch_size, downsampled_seq_len, 128]
         
         # Pack padded sequence if mask is provided
         if mask is not None:
-            # Downsample the mask to match features seq_len
-            # Average pooling of the mask over same stride (2^6 = 64)
-            # Or simpler: downsample mask by slicing/resizing
             downsample_factor = x.shape[-1] // features.shape[1]
             downsampled_mask = mask[:, ::downsample_factor]
+            
             # Match lengths exactly
             if downsampled_mask.shape[1] > features.shape[1]:
                 downsampled_mask = downsampled_mask[:, :features.shape[1]]
@@ -90,16 +187,22 @@ class ResNetGRUFeatureExtractor(nn.Module):
             packed_features = nn.utils.rnn.pack_padded_sequence(
                 features, lengths, batch_first=True, enforce_sorted=False
             )
-            gru_out, _ = self.gru(packed_features)
-            gru_out, _ = nn.utils.rnn.pad_packed_sequence(gru_out, batch_first=True, total_length=features.shape[1])
+            rnn_out, _ = self.rnn(packed_features)
+            rnn_out, _ = nn.utils.rnn.pad_packed_sequence(rnn_out, batch_first=True, total_length=features.shape[1])
             
-            # Extract last non-padded hidden state
-            batch_size = gru_out.size(0)
-            idx = (lengths - 1).view(-1, 1, 1).expand(batch_size, 1, gru_out.size(2)).to(gru_out.device)
-            last_hidden = gru_out.gather(1, idx).squeeze(1)
+            if self.use_attention_pooling:
+                last_hidden = self.attn_pooling(rnn_out, downsampled_mask)
+            else:
+                # Extract last non-padded hidden state
+                batch_size = rnn_out.size(0)
+                idx = (lengths - 1).view(-1, 1, 1).expand(batch_size, 1, rnn_out.size(2)).to(rnn_out.device)
+                last_hidden = rnn_out.gather(1, idx).squeeze(1)
         else:
-            gru_out, _ = self.gru(features)
-            last_hidden = gru_out[:, -1, :] # Last step
+            rnn_out, _ = self.rnn(features)
+            if self.use_attention_pooling:
+                last_hidden = self.attn_pooling(rnn_out, None)
+            else:
+                last_hidden = rnn_out[:, -1, :] # Last step
             
         return last_hidden
 
@@ -148,8 +251,6 @@ class DCCAProjection:
                 continue
             Xc_class = Xc[idx]
             Yc_class = Yc[idx]
-            # Sw_c = X_c * 1 * Y_c^T
-            # Normalizing by number of class samples to prevent bias towards large classes
             Sw += (Xc_class.T @ np.ones((Xc_class.shape[0], Yc_class.shape[0])) @ Yc_class) / (np.sum(idx) * N)
             
         # Sb (Inter-class correlation matrix) = St - Sw
@@ -158,12 +259,8 @@ class DCCAProjection:
         # S_tilde_xy = Sw - eta * Sb
         S_tilde_xy = Sw - self.eta * Sb
         
-        # Solve generalized eigenvalue problem:
-        # We want to find projection directions Wx and Wy using SVD of:
-        # T = Sxx^-1/2 * S_tilde_xy * Syy^-1/2
-        # Let's perform symmetric square root of Sxx and Syy
+        # Solve generalized eigenvalue problem
         eigvals_x, eigvecs_x = eigh(Sxx)
-        # Avoid negative/zero eigenvalues due to precision
         eigvals_x = np.clip(eigvals_x, a_min=1e-12, a_max=None)
         Sxx_m12 = eigvecs_x @ np.diag(1.0 / np.sqrt(eigvals_x)) @ eigvecs_x.T
         
@@ -202,7 +299,7 @@ class DCCAProjection:
 
 class FusionClassifier(nn.Module):
     """
-    Classifier that takes fused DCCA features and performs classification.
+    Classifier that takes fused features and performs classification.
     """
     def __init__(self, input_dim, num_classes=4):
         super().__init__()
@@ -220,3 +317,57 @@ class FusionClassifier(nn.Module):
         
     def forward(self, x):
         return self.net(x)
+
+class AttentionFusionClassifier(nn.Module):
+    """
+    Fuses Traditional (X) and Deep (Y) features using a Gated Cross-Attention mechanism.
+    """
+    def __init__(self, trad_dim, deep_dim, num_classes=4):
+        super().__init__()
+        # Project both to same dimension for attention
+        self.proj_trad = nn.Linear(trad_dim, 64)
+        self.proj_deep = nn.Linear(deep_dim, 64)
+        
+        # Cross-attention weights
+        self.query = nn.Linear(64, 64)
+        self.key = nn.Linear(64, 64)
+        self.value = nn.Linear(64, 64)
+        
+        # Gated fusion gate
+        self.gate = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.Sigmoid()
+        )
+        
+        self.classifier = nn.Sequential(
+            nn.Linear(64, 32),
+            nn.BatchNorm1d(32),
+            nn.LeakyReLU(0.1),
+            nn.Dropout(0.2),
+            nn.Linear(32, num_classes)
+        )
+        
+    def forward(self, x_trad, x_deep):
+        # x_trad: [B, trad_dim], x_deep: [B, deep_dim]
+        t = self.proj_trad(x_trad)  # [B, 64]
+        d = self.proj_deep(x_deep)  # [B, 64]
+        
+        # We treat t and d as sequence of length 2
+        features = torch.stack([t, d], dim=1) # [B, 2, 64]
+        
+        q = self.query(features) # [B, 2, 64]
+        k = self.key(features)   # [B, 2, 64]
+        v = self.value(features) # [B, 2, 64]
+        
+        scores = torch.matmul(q, k.transpose(-2, -1)) / np.sqrt(64.0) # [B, 2, 2]
+        attn_weights = torch.softmax(scores, dim=-1) # [B, 2, 2]
+        fused_features = torch.matmul(attn_weights, v) # [B, 2, 64]
+        
+        # Flatten and gate
+        fused_flat = fused_features.reshape(-1, 128)
+        g = self.gate(fused_flat) # [B, 64]
+        
+        # Gated sum of projections
+        output = g * t + (1 - g) * d
+        
+        return self.classifier(output)

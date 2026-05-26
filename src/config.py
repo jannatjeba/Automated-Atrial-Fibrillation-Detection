@@ -17,7 +17,7 @@ KAGGLE_INPUT_DIR = "/kaggle/input"
 # ==========================================
 FOLDS = 5
 MAX_LEN_SEC = 30
-GRU_HIDDEN = 64
+GRU_HIDDEN = 128  # Increased hidden dimension (previously 64)
 DCCA_DIM = 16
 DCCA_ETA = 0.1
 BATCH_SIZE = 64
@@ -30,6 +30,43 @@ DEEP_LR = 0.001
 DEEP_WD = 1e-4
 CLASSIFIER_LR = 0.005
 CLASSIFIER_WD = 1e-3
+
+# ==========================================
+# Advanced Model & Training Improvements
+# ==========================================
+# Loss Function Improvement
+USE_FOCAL_LOSS = True
+FOCAL_GAMMA = 2.0
+
+# ECG Preprocessing Improvements
+DETREND_SIGNAL = True            # Remove baseline wander using scipy.signal.detrend
+WAVELET_DENOISING = True          # Optional Wavelet denoising using pywt
+PADDING_MODE = 'reflect'          # 'zero' or 'reflect'
+
+# Deep Feature Extractor Improvements
+RNN_TYPE = 'BiLSTM'               # 'BiLSTM' or 'BiGRU'
+USE_ATTENTION_POOLING = True      # Add temporal attention pooling after RNN
+
+# Data Augmentation Improvements
+USE_DATA_AUGMENTATION = True      # Apply random noise, scaling, shift, crop
+MIXUP_ALPHA = 0.2                 # Alpha parameter for Mixup training (0 to disable)
+
+# Feature Fusion Improvements
+# Options: 'DCCA', 'Concatenate' (Direct Concatenation baseline), 'Attention' (Gated Attention fusion)
+FUSION_METHOD = 'DCCA'
+
+# Training Strategy Improvements
+USE_COSINE_SCHEDULER = True       # CosineAnnealingLR
+USE_EARLY_STOPPING = True         # Early stopping on validation loss
+EARLY_STOPPING_PATIENCE = 5
+USE_GRAD_CLIPPING = True          # Clip gradients to max_norm 1.0
+USE_AMP = True                    # Mixed Precision training (float16)
+
+# Class Imbalance Handling
+USE_BALANCED_SAMPLER = True       # WeightedRandomSampler for balanced batches
+
+# CNN Architecture Improvements
+USE_SE_BLOCK = True               # Add Squeeze-and-Excitation (SE) blocks to ResNet
 
 def get_dataset_path():
     """
