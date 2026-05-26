@@ -114,7 +114,7 @@ class AttentionPooling(nn.Module):
         attn_scores = self.attn(x).squeeze(-1) # [batch_size, seq_len]
         
         if mask is not None:
-            attn_scores = attn_scores.masked_fill(mask == 0, -1e9)
+            attn_scores = attn_scores.masked_fill(mask == 0, -1e4)
             
         attn_weights = torch.softmax(attn_scores, dim=-1).unsqueeze(-1) # [batch_size, seq_len, 1]
         context = torch.sum(x * attn_weights, dim=1) # [batch_size, input_dim]
