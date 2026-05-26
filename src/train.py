@@ -225,7 +225,11 @@ def main(args):
     labels = np.array([r['label_idx'] for r in full_dataset.records])
     
     # 2. Pre-extract traditional handcrafted features
-    cache_path = os.path.join(args.data_root, "traditional_features_cache.npz")
+    if os.access(data_root, os.W_OK):
+        cache_dir = data_root
+    else:
+        cache_dir = "."
+    cache_path = os.path.join(cache_dir, "traditional_features_cache.npz")
     X_trad, _ = preextract_traditional_features(full_dataset, cache_path=cache_path)
     
     # 3. K-Fold Cross Validation Setup
