@@ -11,6 +11,7 @@ from tqdm import tqdm
 import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+import config as cfg
 from dataset import download_and_extract_dataset, PhysioNet2017Dataset
 from features import extract_features
 from models import ResNetGRUFeatureExtractor, DCCAProjection, FusionClassifier
@@ -68,7 +69,7 @@ def train_deep_model(model, train_loader, val_loader, class_weights, epochs=20, 
     
     optimizer = optim.Adam(
         list(model.parameters()) + list(classifier_head.parameters()), 
-        lr=0.001, weight_decay=1e-4
+        lr=cfg.DEEP_LR, weight_decay=cfg.DEEP_WD
     )
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
     
@@ -151,7 +152,7 @@ def train_fusion_classifier(classifier, Z_train, y_train, Z_val, y_val, class_we
     """
     Trains the Fusion Classifier on DCCA projected features.
     """
-    optimizer = optim.Adam(classifier.parameters(), lr=0.005, weight_decay=1e-3)
+    optimizer = optim.Adam(classifier.parameters(), lr=cfg.CLASSIFIER_LR, weight_decay=cfg.CLASSIFIER_WD)
     criterion = nn.CrossEntropyLoss(weight=class_weights.to(device))
     
     # Create simple numpy dataloaders
@@ -204,8 +205,13 @@ def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
     
-    # 1. Download and extract dataset
-    data_dir, csv_path = download_and_extract_dataset(args.data_root)
+    # 1. Resolve data root dynamically if not specified
+    data_root = args.data_root
+    if data_root is None:
+        data_root = cfg.get_dataset_path()
+        
+    print(f"Dataset root directory: {data_root}")
+    data_dir, csv_path = download_and_extract_dataset(data_root)
     
     # Initialize main dataset
     full_dataset = PhysioNet2017Dataset(
@@ -315,16 +321,16 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="AF Detection with DCCA Feature Fusion")
-    parser.add_argument("--data_root", type=str, default="./data", help="Root directory for dataset")
-    parser.add_argument("--folds", type=int, default=5, help="Number of cross-validation folds")
-    parser.add_argument("--max_len_sec", type=int, default=30, help="Max signal duration in seconds")
-    parser.add_argument("--gru_hidden", type=int, default=64, help="GRU hidden units")
-    parser.add_argument("--dcca_dim", type=int, default=16, help="Dimensions after DCCA projection")
-    parser.add_argument("--dcca_eta", type=float, default=0.1, help="DCCA interclass weight parameter")
-    parser.add_argument("--batch_size", type=int, default=64, help="Batch size for training")
-    parser.add_argument("--deep_epochs", type=int, default=15, help="Epochs to pretrain ResNet-GRU")
-    parser.add_argument("--classifier_epochs", type=int, default=30, help="Epochs to train Fusion Classifier")
-    parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--data_root", type=str, default=None, help="Root directory for dataset (default: resolved from config / path file)")
+    parser.add_argument("--folds", type=int, default=cfg.FOLDS, help="Number of cross-validation folds")
+    parser.add_argument("--max_len_sec", type=int, default=cfg.MAX_LEN_SEC, help="Max signal duration in seconds")
+    parser.add_argument("--gru_hidden", type=int, default=cfg.GRU_HIDDEN, help="GRU hidden units")
+    parser.add_argument("--dcca_dim", type=int, default=cfg.DCCA_DIM, help="Dimensions after DCCA projection")
+    parser.add_argument("--dcca_eta", type=float, default=cfg.DCCA_ETA, help="DCCA interclass weight parameter")
+    parser.add_argument("--batch_size", type=int, default=cfg.BATCH_SIZE, help="Batch size for training")
+    parser.add_argument("--deep_epochs", type=int, default=cfg.DEEP_EPOCHS, help="Epochs to pretrain ResNet-GRU")
+    parser.add_argument("--classifier_epochs", type=int, default=cfg.CLASSIFIER_EPOCHS, help="Epochs to train Fusion Classifier")
+    parser.add_argument("--seed", type=int, default=cfg.SEED, help="Random seed")
     
     args = parser.parse_args()
     

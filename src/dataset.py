@@ -169,7 +169,21 @@ class PhysioNet2017Dataset(Dataset):
             )
 
 def download_and_extract_dataset(dest_dir):
-    """Downloads and extracts the PhysioNet CinC 2017 dataset."""
+    """Downloads and extracts the PhysioNet CinC 2017 dataset if not already present."""
+    # Check if REFERENCE.csv is directly in dest_dir (e.g. Kaggle datasets flat structure)
+    direct_csv_path = os.path.join(dest_dir, "REFERENCE.csv")
+    if os.path.exists(direct_csv_path):
+        print(f"REFERENCE.csv found directly in {dest_dir}. Bypassing download/extraction.")
+        return dest_dir, direct_csv_path
+
+    # Check if REFERENCE.csv is in training2017 subdirectory
+    csv_path = os.path.join(dest_dir, "training2017", "REFERENCE.csv")
+    data_dir = os.path.join(dest_dir, "training2017")
+    if os.path.exists(csv_path):
+        print(f"REFERENCE.csv found in {data_dir}. Bypassing download/extraction.")
+        return data_dir, csv_path
+
+    # Otherwise, download and extract
     url = "https://physionet.org/files/challenge-2017/1.0.0/training2017.zip"
     zip_path = os.path.join(dest_dir, "training2017.zip")
     
@@ -187,7 +201,4 @@ def download_and_extract_dataset(dest_dir):
             zip_ref.extractall(dest_dir)
         print("Extraction complete.")
         
-    csv_path = os.path.join(dest_dir, "training2017", "REFERENCE.csv")
-    data_dir = os.path.join(dest_dir, "training2017")
-    
     return data_dir, csv_path
