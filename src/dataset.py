@@ -8,6 +8,8 @@ from scipy.signal import butter, filtfilt, detrend
 import torch
 from torch.utils.data import Dataset
 import pywt
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import config as cfg
 
 class PhysioNet2017Dataset(Dataset):

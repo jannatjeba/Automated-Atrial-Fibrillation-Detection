@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 from scipy.linalg import inv, eigh
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import config as cfg
 
 class SqueezeExcitation1D(nn.Module):
